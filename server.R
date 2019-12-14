@@ -182,19 +182,39 @@ shinyServer(function(input, output, session) {
       df_plr_train <- nba_plr_2018[train, ] 
       df_plr_test  <- nba_plr_2018[test, ]
       mlr_fit <- lm(Salary ~ Points+PER+Age+Blocks+Steals+Assists+Rebounds, data=df_plr_train)
+      trctrl5 <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+      set.seed(7)
+      #Develop the model with rf method
+      # rf method takes default tuning parameters n.trees, interaction.depth, 
+      #shrinkage and n.minobsinnode
+      
+      dbtree_bo_fit <- train(Salary ~ Points+PER+Age+Blocks+Steals+Assists+Rebounds, 
+                             data = df_plr_train, method = "gbm", 
+                             preProcess = c("center", "scale"), verbose = FALSE,trControl=trctrl5)
+      
       
       mlr_fit_pred    <- predict(mlr_fit,  newdata = df_plr_test)
+      Salary_Boosted <- predict(dbtree_bo_fit, newdata = df_plr_test)
+      Boosted_fit_df <- data.frame(Salary_Boosted)
       Linear_fit_df  <- data.frame(mlr_fit_pred)
-      merge_for_compare <- dplyr::bind_cols(df_plr_test, Linear_fit_df)
+      merge_for_compare <- dplyr::bind_cols(df_plr_test, Linear_fit_df, Boosted_fit_df )
       graph_data <- head(merge_for_compare,100)
       correlation_linear <- cor(merge_for_compare$Salary, merge_for_compare$mlr_fit_pred)
-      # 
-      p66 <- ggplot(graph_data, aes(x=Salary, y=mlr_fit_pred)) + geom_point()+ 
-        geom_smooth(method = lm, col = "Blue") + 
-        geom_text(x = 10000000, y = 1000000, size = 5, 
-                  label = paste0("Correlation = ", round(correlation_linear, 2))) 
+      correlation_boosted <- cor(merge_for_compare$Salary, merge_for_compare$Salary_Boosted)
+      graph_data <- head(merge_for_compare,100)
+      #
+      if (input$ModelType == "Linear_Regression"){
+            p66 <- ggplot(graph_data, aes(x=Salary, y=mlr_fit_pred)) + geom_point()+ 
+              geom_smooth(method = lm, col = "Blue") + 
+              geom_text(x = 10000000, y = 1000000, size = 5, 
+                        label = paste0("Correlation = ", round(correlation_linear, 2))) 
       #+ ggtitle("Scatter Plot of Actual vs Linear Model Predicted Salary")
-      
+      } else if (input$ModelType == "Boosted_Tress"){
+      p66 <- ggplot(graph_data, aes(x=Salary, y=Salary_Boosted)) +
+        geom_point()+ geom_smooth(method = lm, col = "Red") + 
+        geom_text(x = 10000000, y = 1000000, size = 5, 
+                  label = paste0("Correlation = ", round(correlation_boosted, 2)))
+      }
       p66
       })
       
