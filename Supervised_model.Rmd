@@ -1,0 +1,263 @@
+---
+title: "STutika_ST558_Project3"
+author: "Sridhar Tutika"
+date: "12/13/2019"
+output:  
+  html_document:  
+    theme: default
+    toc: TRUE
+    toc_float: FALSE  
+    toc_depth: 3  
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(Lahman)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(haven)
+library(readxl)
+library(DT)
+library(tables)
+library(ggplot2)
+library(modelr)
+library(MuMIn)
+library(ISLR)
+library(ggiraph)
+library(ggiraphExtra)
+library(XML)
+library(methods)
+library(caret)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(gbm)
+library(knitr)
+library(GGally)
+library(rgl)
+library(ciTools)
+
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, warning = FALSE)  
+```
+
+# Introduction 
+
+Purpose of this project is to develop a statistical model to predict a continuous variable using Linear Regression and Ensemble Learning Methods.
+Here we are predicting to predict the NBA player Salary continuous variable based on his game stats such as efficiency (PER), average points, assists and blocks using supervised learning method Multiple Linear regression.
+
+# Player Stats data
+
+
+Source of the Data is NBA Player and Game data downloaded from [Kaggle](https://www.kaggle.com/schmadam97/nba-regular-season-stats-20182019#) 
+
+The source file contains around NBA stats from all games in all seasons from 2000-01 to 2018-19 season
+
+Top 10 Team and Payer stats - Data preview
+
+```{r getNBA, echo=FALSE,EVAL=FALSE}
+# Read NBA team stat csv file, and select top 10 teams and player for preview
+nba_team_stat <- read_csv("nba_team_stats_00_to_18.csv")
+nba_team_stat2 <- filter(nba_team_stat, SEASON=="2018-19")
+
+nba_team_top10_2018 <- nba_team_stat2[order(-nba_team_stat2$'WIN%'),] %>% head(10)
+
+#Read NBA 2018-19 Player stat csv file
+nba_plr_stat <- read_csv("nbastats2018-2019.csv")
+
+nba_plr_2018 <- na.omit(nba_plr_stat[order(-nba_plr_stat$Points),] )
+nba_plr_2018$Salary <- as.numeric(nba_plr_2018$Salary)
+nba_plr_top10_2018 <-  nba_plr_2018 %>% head(10)
+
+```
+
+## Preview of the Data of top 10 NBA players from 2018-19 season
+
+GGally package a quick summary of key variables and their relation wrt to NBA Player stats. 
+
+A plot of team, points vs salary for 10 players regions shows how the salary is varied 
+
+```{r read1, echo=FALSE, include=TRUE,message=FALSE}
+# Read  Zillow data CSV ﬁle. Save the R object as data frame
+
+
+df_plr_image_select <- nba_plr_top10_2018  %>% select(Salary, PER, Team, Points, Blocks, Steals, Assists)
+GGally::ggpairs(df_plr_image_select)
+
+
+ggplot(df_plr_image_select, aes(x = Points, y = Salary)) + geom_point(aes(col = Team)) +  geom_smooth(method = "lm", aes(col = Team))
+
+# Based on the above plots, it is better to develop a full model 
+```
+
+Above plots indicate the categorical variables such as Team name, type has good amount of correlation wrt to Salary. 
+
+# Data split
+
+NBA Player data then has been split into 80% train set used to develop the model and then 20% to test set to evaluate the developed model
+
+Randomly selecting the rows from 80% of the data by sample function
+The Idea is to develop a model on train set (data frame train) and test the model(data frame test) on the test set with the data that is not used to develop the model.
+
+Preview of test and train 
+
+```{r split1, echo=FALSE, include=TRUE,message=FALSE}
+set.seed(4055)
+train <- sample(1:nrow(nba_plr_2018), size = nrow(nba_plr_2018)*0.8) 
+
+# Select the remaining 20% of rows into test set
+
+test <- dplyr::setdiff(1:nrow(nba_plr_2018), train)
+
+# Now pull the actual rows by row numbers into test and train data frames
+
+df_plr_train <- nba_plr_2018[train, ] 
+df_plr_test  <- nba_plr_2018[test, ]
+
+head(df_plr_train)
+head(df_plr_test)
+```
+
+# Data preprocessing
+
+Data preprocessing involves transforming data into a basic form that makes it easy to work with. Machine learning algorithms require the data to be in a specific form. Whereas other algorithms can perform better if the data is prepared in a specific way, but not always. Finally, your raw data may not be in the best format to best expose the underlying structure and relationships to the predicted variables.
+
+It is important to prepare the data in such a way that it gives various different machine learning algorithms the best chance on your problem.
+
+We need to pre-process the  raw data as part of machine learning project.
+The data has been centered and scaled when doing the Ensemble learning model below with caret package, with the option of preProcess = c("center", "scale"). 
+
+The scale transform calculates the standard deviation for an attribute and divides each value by that standard deviation.
+
+The center transform calculates the mean for an attribute and subtracts it from each value.
+
+The categorical variables have been converted into numerical classes for prediction accuracy. 
+
+Computational nuances are handles using trainControl function in caret package using method = "repeatedcv", number = 10, repeats = 3 parameters.
+
+# Linear Regression
+
+A Multiple Linear regression models has been developed and evaluated such as efficiency (PER), average points, assists and blocks using supervised learning method.
+Here we will use AIC, AICC and BIC and Adj R Square for evaluating the accuracy of the Linear Model.
+
+
+```{r lmodel, echo=FALSE, include=TRUE,message=FALSE}
+mlr_fit <- lm(Salary ~ Points+PER+Age+Blocks+Steals+Assists+Rebounds, data=df_plr_train)
+mlr_fit
+
+compareFitStats <- function(fit1){
+  require(MuMIn)
+  fitStats <- data.frame(fitStat = c("Adj R Square", "AIC", "AICc", "BIC"),
+                         col1 = round(c(summary(fit1)$adj.r.squared, AIC(fit1),
+                                        MuMIn::AICc(fit1), BIC(fit1)), 3))
+                         
+  #put names on returned df    
+  calls <- as.list(match.call())
+  calls[[1]] <- NULL    
+  names(fitStats)[2:2] <- unlist(calls)    
+  fitStats
+}
+compareFitStats(mlr_fit)
+```
+
+# Ensemble model fit -  Boosting
+
+Here we developed a predictive model for Salary continuous variable using Boosting ensemble learning method. This model is similar to Bagging but we slowly grow the trees so we don't over fit the model. We will develop the model using Caret package and also gbm library to better view the plots.
+
+## Boosting using Caret Package
+
+```{r traindbboset3, echo=FALSE,include=TRUE,message=FALSE}
+# setting preprocessing train controls and checking the accuracy of 
+#classification tree fit.  
+
+trctrl5 <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(7)
+#Develop the model with rf method
+# rf method takes default tuning parameters n.trees, interaction.depth, 
+#shrinkage and n.minobsinnode
+
+dbtree_bo_fit <- train(Salary ~ Points+PER+Age+Blocks+Steals+Assists+Rebounds, data = df_plr_train, method = "gbm", preProcess = c("center", "scale"), verbose = FALSE,trControl=trctrl5)
+dbtree_bo_fit 
+summary(dbtree_bo_fit)
+plot(dbtree_bo_fit )
+```
+
+Above Summary of Boosting model indicate the highest R Squared xx and lowest MSE is achieved with number of trees 150 and interaction.depth = 3, shrinkage = 0.1 and n.minobsinnode = 10.
+
+The summary indicates the relative importance of variables in determining the Salary.  
+
+
+# Test set Prediction
+
+The Developed models have been tested  on test set to predict the Salary. The values are compared for the first 6 observations for a summary view. 
+
+```{r predict1, echo=FALSE,include=TRUE,message=FALSE}
+#Predict the Salary using models developed and check accuracy
+
+
+mlr_fit_pred    <- predict(mlr_fit,  newdata = df_plr_test)
+Salary_Boosted <- predict(dbtree_bo_fit, newdata = df_plr_test)
+   
+#compare fit vs actual on the test dataset
+Linear_fit_df  <- data.frame(mlr_fit_pred)
+Boosted_fit_df <- data.frame(Salary_Boosted)
+
+# Merge the test and liner compute and boosted models predicted values
+merge_for_compare <- dplyr::bind_cols(df_plr_test, Linear_fit_df, Boosted_fit_df )
+
+head(merge_for_compare) %>% dplyr::select(Name, Team, Salary, mlr_fit_pred ,Salary_Boosted)
+```
+
+# Conclusions
+
+A well-fitting regression model results in predicted values close to the observed data values. Three statistics are used in Ordinary Least Squares (OLS) regression to evaluate model fit: R-squared, the overall F-test, and the Root Mean Square Error (RMSE). There are situations in which a high R-squared is not necessary or relevant. When the interest is in the relationship between variables, not in prediction, the R-square is less important. 
+
+The RMSE is the square root of the variance of the residuals. It indicates the absolute fit of the model to the data–how close the observed data points are to the model’s predicted values. Whereas R-squared is a relative measure of fit, RMSE is an absolute measure of fit. 
+
+
+## RMSE Comparison
+
+RMSE is the standard deviation of the residuals (prediction errors). Residuals are a measure of how far from the regression line data points are; RMSE is a measure of how spread out these residuals are. In other words, it tells you how concentrated the data is around the line of best fit.
+
+```{r msccomp, echo=FALSE,include=TRUE,message=FALSE}
+
+# #Calculating MSE on different models
+
+mlr_fit_test  <- rmse(mlr_fit, df_plr_test)
+mlr_fit_train <- rmse(mlr_fit, df_plr_train)
+gbm1_fit_test   <- rmse(dbtree_bo_fit, df_plr_test)
+gbm1_fit_train <- rmse(dbtree_bo_fit, df_plr_train)
+#
+
+slr <- data.frame(mlr_fit_test, mlr_fit_train,gbm1_fit_test,gbm1_fit_train )
+kable(slr,caption = "Root Mean Squared Error Comparison")
+```
+
+## Scatter Plot of Predicted vs actual
+
+
+As the Multiple regression was developed for Salary is compared with the actual values of the test set and a scatter plot has been developed for comparison and correlation of first 100 observations of the test data.
+
+```{r predictplot1, echo=FALSE,include=TRUE,message=FALSE}
+
+correlation_linear <- cor(merge_for_compare$Salary, merge_for_compare$mlr_fit_pred)
+
+correlation_boosted <- cor(merge_for_compare$Salary, merge_for_compare$Salary_Boosted)
+# 
+# Plotting the for the first 1000 test observations 
+#  
+graph_data <- head(merge_for_compare,100)
+# 
+ggplot(graph_data, aes(x=Salary, y=mlr_fit_pred)) + geom_point()+ geom_smooth(method = lm, col = "Blue") + geom_text(x = 10000000, y = 1000000, size = 5, label = paste0("Correlation = ", round(correlation_linear, 2))) + ggtitle("Scatter Plot of Actual vs Linear Model Predicted Salary")
+
+ggplot(graph_data, aes(x=Salary, y=Salary_Boosted)) + geom_point()+ geom_smooth(method = lm, col = "Red") + geom_text(x = 10000000, y = 1000000, size = 5, label = paste0("Correlation = ", round(correlation_boosted, 2))) + ggtitle("Scatter Plot of Actual vs Boosted Model Predicted Salary")
+```
+
+
+## Evaluation Summary
+
+Based on the MSE error rate calculation, Multiple regression shows the lower error rate in test set compared with that of Boosted model. At the same time, training set error was significantly low in boosted model.
+
+The boosted trees model correlation of predicted vs actual Salary values is slightly lesser than the Linear regression. When 100 observations of test data are measured, Boosted model has a correlation of 0.72 compared to linear model's 0.76 
+
+Based on the analysis, we can conclude that Linear regression model performance is better and this can be used to predict a player's salary.

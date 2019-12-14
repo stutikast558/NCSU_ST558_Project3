@@ -1,0 +1,106 @@
+---
+title: "STutika_ST558_Project3"
+author: "Sridhar Tutika"
+date: "12/13/2019"
+output:  
+  html_document:  
+    theme: default
+    toc: TRUE
+    toc_float: FALSE  
+    toc_depth: 3  
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(Lahman)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(haven)
+library(readxl)
+library(DT)
+library(tables)
+library(ggplot2)
+library(modelr)
+library(MuMIn)
+library(ISLR)
+library(ggiraph)
+library(ggiraphExtra)
+library(XML)
+library(methods)
+library(caret)
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(gbm)
+library(knitr)
+library(GGally)
+library(rgl)
+library(ciTools)
+
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, warning = FALSE)  
+```
+
+# Principal Components Analysis (PCA)
+
+Purpose of this project is to understand principal components in the data set using Unsupervised Learning models.Identifying Principal components will help develop the models by reducing the number of explanatory variables
+to important ones. And these Principal Components can be used to develop the regression Model.
+.
+
+# Player Stats data
+  
+
+Source of the Data is NBA Player and Game data downloaded from [Kaggle](https://www.kaggle.com/schmadam97/nba-regular-season-stats-20182019#) 
+
+The source file contains around NBA stats from all games in all seasons from 2000-01 to 2018-19 season
+
+Top 10 Team and Payer stats - Data preview
+
+```{r getNBA, echo=FALSE,EVAL=FALSE}
+ 
+nba_pca_plr_stat <- read_csv("nbastats2018-2019.csv")
+p <- data.frame(na.omit(nba_pca_plr_stat[order(-nba_pca_plr_stat$Points),] ))
+p$Salary <- as.numeric(p$Salary)
+```
+
+# Principal Components in Player Stats data
+
+Based on prcomp function, here we are finding relation/interaction between four key variables
+Salary, points Age and PER (efficiency rating of the player)
+
+```{r getpcs, echo=FALSE,EVAL=FALSE}
+PCs <- prcomp(select(p, Salary, Points, Age, PER) , scale = TRUE) 
+PCs
+```
+
+# Biplot - Visual for PCA
+
+```{r getpcsb, echo=FALSE,EVAL=FALSE}
+biplot(PCs, xlabs = rep(".", nrow(p)), cex = 0.9)
+```
+
+# Expanding the Analysis (More PCs)
+
+Based on prcomp function, we are taking all the numeric variables from Age in the data set
+and finding the interactions with pairs function.
+
+```{r getpcs2, echo=FALSE,EVAL=FALSE}
+
+subp <- select(p, Age: FGA)
+
+pairs(subp, cex = 0.4)  
+
+PC2s <- prcomp(subp, center = TRUE, scale = TRUE) 
+PC2s
+
+biplot(PC2s, xlabs = rep(".", nrow(p)), cex = 0.9)
+```
+
+# Screeplot to determine Principal components
+
+From the Scree Plot below, it is evident that there are only three to five uncorrelated valuables that represent 10 variables. This helps in developing a regression models with three to five important variables.
+
+```{r getpcs3, echo=FALSE,EVAL=FALSE}
+screeplot(PC2s, type = "lines") #scree plot used for visual
+
+```
