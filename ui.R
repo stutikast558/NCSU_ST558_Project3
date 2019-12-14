@@ -195,7 +195,7 @@ body <- dashboardBody(
           width = 4,
           box(  
             title = "Regression Model for Player Salary", status = "primary", width = 14, solidHeader = TRUE,
-            selectInput("PlayerA", label = h4("Select Player A"),
+            selectInput("PlayerC", label = h4("Select a Player"),
                         choices = as.list(as.character(unique(selectedDataAll1()$Name))),
                         #    select 1st player
                         selected = as.list(as.character(unique(selectedDataAll1()$Name)))[1],
@@ -209,7 +209,7 @@ body <- dashboardBody(
             ),
             # select data type
             checkboxGroupInput(
-              "stats",
+              "stats2",
               label = "Stats to use for the model",
               choices = c(
                 "Points" = "TotalPoints",
