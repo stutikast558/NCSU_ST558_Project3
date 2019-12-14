@@ -26,10 +26,10 @@ sidebar <- dashboardSidebar(
     ),
     menuItem(
       "Team Stats", icon = icon("basketball-ball", lib = "font-awesome"), tabName = "tstats"
+    ),
+    menuItem(
+      "Supervised Model", icon = icon("flash", lib = "font-awesome"), tabName = "smodel"
     )
-  #  menuItem(
-  #    "Supervised Model", icon = icon("flash", lib = "font-awesome"), tabName = "smodel"
-  #  ),
   #  menuItem(
   #    "Unsupervised Model", icon = icon("magic", lib = "font-awesome"), tabName = "umodel"
   #  )
@@ -175,12 +175,6 @@ body <- dashboardBody(
                         selected = as.list(as.character(unique(nba_teams()$TEAM[1]))),
                         selectize = TRUE,
                         multiple = FALSE),
-            # radioButtons(
-            #   "tviewType",
-            #   label = "Tables or Plots",
-            #   choices = c("Table", "Plots"),
-            #   selected = "Table"
-            # ),
             ),
         ),
         tabBox(
@@ -192,6 +186,57 @@ body <- dashboardBody(
             #  box(width = 8,  DTOutput("table"))
         ####### this was working above
       )),
+    #### Attach new code for Modeling below ####
+    
+    tabItem(
+      tabName = "smodel",
+      fluidRow(
+        column(
+          width = 4,
+          box(  
+            title = "Regression Model for Player Salary", status = "primary", width = 14, solidHeader = TRUE,
+            selectInput("PlayerA", label = h4("Select Player A"),
+                        choices = as.list(as.character(unique(selectedDataAll1()$Name))),
+                        #    select 1st player
+                        selected = as.list(as.character(unique(selectedDataAll1()$Name)))[1],
+                        selectize = TRUE,
+                        multiple = FALSE),
+            radioButtons(
+              "ModelType",
+              label = "Supervised Model Type",
+              choices = c("Linear_Regression", "Boosted_Tress"),
+              selected = "Linear_Regression"
+            ),
+            # select data type
+            checkboxGroupInput(
+              "stats",
+              label = "Stats to use for the model",
+              choices = c(
+                "Points" = "TotalPoints",
+                "Threes Made" = "ThreesMade",
+                "Rebounds" = "TotalRebounds",
+                "Assists" = "Assists",
+                "Steals" = "Steals",
+                "Blocks" = "Blocks",
+                "Turnovers" = "Turnovers"
+              ),
+              selected = c(
+                "TotalPoints",
+                "ThreesMade",
+                "TotalRebounds",
+                "Assists",
+                "Steals",
+                "Blocks",
+                "Turnovers"
+              ),
+              inline = "TRUE"
+            )
+          ),
+        ),
+        box(width = 8,  plotOutput("plotm"))
+      )),
+    
+    #### Attach new code above ####
     ### Code for Introduction and Information Menu
     tabItem(tabName = "overview",
             fluidRow(column(

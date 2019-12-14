@@ -164,30 +164,83 @@ shinyServer(function(input, output, session) {
              print(p2)
             #theme_ipsum() 
           })
+      ### model code below
+    }else if (input$tabs == "smodel"){
       
-    }
-    
+      reg_model <- reactive({
+      
+      nba_plr_stat <- read_csv("nbastats2018-2019.csv")
+      
+      nba_plr_2018 <- na.omit(nba_plr_stat[order(-nba_plr_stat$Points),] )
+      nba_plr_2018$Salary <- as.numeric(nba_plr_2018$Salary)
+      set.seed(4055)
+      train <- sample(1:nrow(nba_plr_2018), size = nrow(nba_plr_2018)*0.8) 
+      
+      # Select the remaining 20% of rows into test set
+      
+      test <- dplyr::setdiff(1:nrow(nba_plr_2018), train)
+      df_plr_train <- nba_plr_2018[train, ] 
+      df_plr_test  <- nba_plr_2018[test, ]
+      mlr_fit <- lm(Salary ~ Points+PER+Age+Blocks+Steals+Assists+Rebounds, data=df_plr_train)
+      
+      mlr_fit_pred    <- predict(mlr_fit,  newdata = df_plr_test)
+      Linear_fit_df  <- data.frame(mlr_fit_pred)
+      merge_for_compare <- dplyr::bind_cols(df_plr_test, Linear_fit_df)
+      graph_data <- head(merge_for_compare,100)
+      correlation_linear <- cor(merge_for_compare$Salary, merge_for_compare$mlr_fit_pred)
+      # 
+      p66 <- ggplot(graph_data, aes(x=Salary, y=mlr_fit_pred)) + geom_point()+ 
+        geom_smooth(method = lm, col = "Blue") + 
+        geom_text(x = 10000000, y = 1000000, size = 5, 
+                  label = paste0("Correlation = ", round(correlation_linear, 2))) 
+      #+ ggtitle("Scatter Plot of Actual vs Linear Model Predicted Salary")
+      
+      p66
+      })
+      
+      output$plotm <- renderPlot(reg_model())
+        
+      # compareFitStats <- function(fit1){
+      #   require(MuMIn)
+      #   fitStats <- data.frame(fitStat = c("Adj R Square", "AIC", "AICc", "BIC"),
+      #                          col1 = round(c(summary(fit1)$adj.r.squared, AIC(fit1),
+      #                                         MuMIn::AICc(fit1), BIC(fit1)), 3))
+      #   
+      #   #put names on returned df    
+      #   calls <- as.list(match.call())
+      #   calls[[1]] <- NULL    
+      #   names(fitStats)[2:2] <- unlist(calls)    
+      #   fitStats
+      # }
+      # compareFitStats(mlr_fit)
+      
+   
+      
+    } 
+     
+    #### Model code above
+    #### Model code above#### Model code above
   })
   
 #################################################################################################
 #### Defautls to Overview Tab ###################################################################
 ######################################################################################   
     output$instructions <- renderText({
-              includeHTML("help1r.rhtml")
+              includeHTML("rmdhtml/help1r.rhtml")
             })
     observeEvent(input$help1, {
       output$instructions <- renderText({
-        includeHTML("help1r.rhtml")
+        includeHTML("rmdhtml/help1r.rhtml")
       })
     })
     observeEvent(input$help2, {
       output$instructions <- renderText({
-        includeHTML("Supervised_model.html")
+        includeHTML("rmdhtml/Supervised_model.html")
       })
     })
     observeEvent(input$help3, {
       output$instructions <- renderText({
-        includeHTML("UnSupervised_model_PCA.html")
+        includeHTML("rmdhtml/UnSupervised_model_PCA.html")
       })
     })
 })
