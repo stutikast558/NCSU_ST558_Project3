@@ -173,21 +173,21 @@ shinyServer(function(input, output, session) {
 #### Defautls to Overview Tab ###################################################################
 ######################################################################################   
     output$instructions <- renderText({
-              includeHTML("rmdhtml/help1r.rhtml")
+              includeHTML("help1r.rhtml")
             })
     observeEvent(input$help1, {
       output$instructions <- renderText({
-        includeHTML("rmdhtml/help1r.rhtml")
+        includeHTML("help1r.rhtml")
       })
     })
     observeEvent(input$help2, {
       output$instructions <- renderText({
-        includeHTML("rmdhtml/Supervised_model.html")
+        includeHTML("Supervised_model.html")
       })
     })
     observeEvent(input$help3, {
       output$instructions <- renderText({
-        includeHTML("rmdhtml/UnSupervised_model_PCA.html")
+        includeHTML("UnSupervised_model_PCA.html")
       })
     })
 })
